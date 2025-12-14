@@ -20,7 +20,7 @@ export default async (request, context) => {
       method: "POST",
       headers: {
         // Usa la clave de la variable de entorno de Netlify
-        "Authorization": `Bearer ${Netlify.env.get("GROQ_API_KEY")}`,
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -40,4 +40,5 @@ export default async (request, context) => {
     console.error("Backend Error:", error);
     return new Response(JSON.stringify({ error: "Error de procesamiento del servidor." }), { status: 500 });
   }
+
 };
