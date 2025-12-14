@@ -37,7 +37,7 @@ export default async (request, context) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "llama3-8b-8192", 
+        model: "llama-3.1-8b-instant", 
         messages: fullMessages
       })
     });
@@ -70,3 +70,4 @@ export default async (request, context) => {
     return new Response(JSON.stringify({ error: "Error de procesamiento interno del servidor. Revisa los logs de Netlify." }), { status: 500 });
   }
 };
+
