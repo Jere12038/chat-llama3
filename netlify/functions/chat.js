@@ -10,18 +10,29 @@ export default async (request, context) => {
   try {
     const body = await request.json();
     const messages = body.messages;
+    const providedKey = body.access_key; // <-- 1. RECIBIMOS LA CLAVE DEL FRONTEND
 
     // Verificar si se ha enviado algún mensaje para evitar errores de formato
     if (!messages || messages.length === 0) {
         return new Response(JSON.stringify({ error: "No se proporcionaron mensajes en la solicitud." }), { status: 400 });
     }
 
+    // --- VERIFICACIÓN DE ACCESO (Añadido) ---
+    // La clave secreta debe ser configurada como una Variable de Entorno en Netlify: CHAT_ACCESS_KEY
+    const SECURE_KEY = process.env.CHAT_ACCESS_KEY;
+
+    if (!SECURE_KEY || providedKey !== SECURE_KEY) {
+        // Bloqueamos la solicitud ANTES de llamar a Groq
+        return new Response(JSON.stringify({ error: "Acceso no autorizado. La clave de acceso es incorrecta." }), { status: 401 });
+    }
+    // --- FIN DE LA VERIFICACIÓN ---
+
     // 1. Usamos process.env para acceder a la clave (SOLUCIÓN al TypeError)
     const GROQ_KEY = process.env.GROQ_API_KEY;
 
     if (!GROQ_KEY) {
-        // Este es el error más probable si la clave no se inyectó
-        return new Response(JSON.stringify({ error: "ERROR: La clave secreta GROQ_API_KEY no fue cargada por el servidor. Revisa las variables de entorno de Netlify." }), { status: 500 });
+      // Este es el error más probable si la clave no se inyectó
+      return new Response(JSON.stringify({ error: "ERROR: La clave secreta GROQ_API_KEY no fue cargada por el servidor. Revisa las variables de entorno de Netlify." }), { status: 500 });
     }
 
     // Añadir mensaje del sistema para darle contexto y memoria a Llama 3
@@ -37,7 +48,7 @@ export default async (request, context) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "llama-3.1-8b-instant", 
+        model: "llama-3.1-8b-instant",  // Modelo corregido
         messages: fullMessages
       })
     });
@@ -70,4 +81,3 @@ export default async (request, context) => {
     return new Response(JSON.stringify({ error: "Error de procesamiento interno del servidor. Revisa los logs de Netlify." }), { status: 500 });
   }
 };
-
