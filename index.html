@@ -177,7 +177,7 @@
         .user { background-color: transparent; color: var(--text-color); text-align: right; align-self: flex-end; }
         .bot { background-color: var(--card-bg); color: var(--text-color); border-left: 3px solid var(--accent-color); align-self: flex-start; }
         
-        /* --- Pantalla de Bienvenida y ACCESO (Ajustado) --- */
+        /* --- Pantalla de Bienvenida y ACCESO --- */
         #welcome-view, #access-view {
             text-align: center;
             flex-grow: 1;
@@ -279,6 +279,13 @@
         </div>
     
     <div class="fixed-zone input-area" id="input-controls" style="display: none;">
+        
+        <div class="suggested-actions" id="suggested-actions">
+            <button class="action-btn" onclick="suggest('Dame ideas para un proyecto de IA')"><i class="fas fa-lightbulb"></i> Inspiración</button>
+            <button class="action-btn" onclick="suggest('Escribe una introducción profesional sobre...')"><i class="fas fa-pen-nib"></i> Productividad</button>
+            <button class="action-btn" onclick="suggest('Explícame la ley de gravitación de forma sencilla.')"><i class="fas fa-graduation-cap"></i> Educativo</button>
+        </div>
+        
         <div class="input-wrapper">
             <button class="icon-btn" title="Adjuntar"><i class="fas fa-paperclip"></i></button>
             
@@ -290,12 +297,7 @@
             </button>
         </div>
         
-        <div class="suggested-actions" id="suggested-actions">
-            <button class="action-btn" onclick="suggest('Dame ideas para un proyecto de IA')"><i class="fas fa-lightbulb"></i> Inspiración</button>
-            <button class="action-btn" onclick="suggest('Escribe una introducción profesional sobre...')"><i class="fas fa-pen-nib"></i> Productividad</button>
-            <button class="action-btn" onclick="suggest('Explícame la ley de gravitación de forma sencilla.')"><i class="fas fa-graduation-cap"></i> Educativo</button>
         </div>
-    </div>
 
 </div>
 
