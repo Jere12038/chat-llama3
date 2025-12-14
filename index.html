@@ -1,183 +1,183 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Llama 3 | Chat History</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <style>
-        /* Variables y Estilos Base */
-        :root {
-            --bg-color: #0d0d0d;
-            --card-bg: #1a1a1a; /* Panel Lateral / Burbujas Bot */
-            --text-color: #f0f0f0;
-            --sub-text-color: #8f8f8f;
-            --input-bg: #2d2d2d;
-            --accent-color: #4a90e2;
-            --shadow-color: rgba(0, 0, 0, 0.7);
-            --font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif;
-            
-            --header-height: 60px;
-            --input-height-min: 60px;
-            --suggest-height: 50px;
-            --footer-padding: 20px;
-            --sidebar-width: 280px;
-        }
-        
-        body {
-            font-family: var(--font-family);
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            height: 100vh;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center; 
-            overflow: hidden; /* Oculta el scroll del body */
-        }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Llama 3 | Chat History</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* Variables y Estilos Base */
+        :root {
+            --bg-color: #0d0d0d;
+            --card-bg: #1a1a1a; /* Panel Lateral / Burbujas Bot */
+            --text-color: #f0f0f0;
+            --sub-text-color: #8f8f8f;
+            --input-bg: #2d2d2d;
+            --accent-color: #4a90e2;
+            --shadow-color: rgba(0, 0, 0, 0.7);
+            --font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif;
+            
+            --header-height: 60px;
+            --input-height-min: 60px;
+            --suggest-height: 50px;
+            --footer-padding: 20px;
+            --sidebar-width: 280px;
+        }
+        
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center; 
+            overflow: hidden; /* Oculta el scroll del body */
+        }
 
-        /* --- Panel Lateral (Sidebar) --- */
-        #sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100%;
-            width: var(--sidebar-width);
-            background-color: var(--card-bg);
-            box-shadow: 4px 0 10px var(--shadow-color);
-            transform: translateX(-100%);
-            transition: transform 0.3s ease-out;
-            z-index: 20;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-        }
+        /* --- Panel Lateral (Sidebar) --- */
+        #sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: var(--sidebar-width);
+            background-color: var(--card-bg);
+            box-shadow: 4px 0 10px var(--shadow-color);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-out;
+            z-index: 20;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
 
-        #sidebar.open {
-            transform: translateX(0);
-        }
+        #sidebar.open {
+            transform: translateX(0);
+        }
 
-        .sidebar-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
 
-        #new-chat-btn {
-            background-color: var(--accent-color);
-            color: white;
-            padding: 8px 15px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-        }
+        #new-chat-btn {
+            background-color: var(--accent-color);
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
 
-        #chat-list {
-            flex-grow: 1;
-            overflow-y: auto;
-            list-style: none;
-            padding: 0;
-        }
+        #chat-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            list-style: none;
+            padding: 0;
+        }
 
-        .chat-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            margin-bottom: 5px;
-            border-radius: 5px;
-            cursor: pointer;
-            background-color: var(--input-bg);
-            transition: background-color 0.2s;
-        }
+        .chat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: var(--input-bg);
+            transition: background-color 0.2s;
+        }
 
-        .chat-item:hover {
-            background-color: var(--accent-color);
-        }
-        
-        .chat-item.active {
-            background-color: var(--accent-color);
-            font-weight: bold;
-        }
+        .chat-item:hover {
+            background-color: var(--accent-color);
+        }
+        
+        .chat-item.active {
+            background-color: var(--accent-color);
+            font-weight: bold;
+        }
 
-        /* --- Main Content Area --- */
-        .main-container {
-            width: 100%;
-            max-width: 800px;
-            padding: 0 20px;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            transition: transform 0.3s ease-out; /* Para empujar el contenido si el sidebar está abierto */
-        }
+        /* --- Main Content Area --- */
+        .main-container {
+            width: 100%;
+            max-width: 800px;
+            padding: 0 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            transition: transform 0.3s ease-out; /* Para empujar el contenido si el sidebar está abierto */
+        }
 
-        /* --- Cuadrados Fijos Superior e Inferior --- */
-        .fixed-zone {
-            position: fixed;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 100%;
-            max-width: 840px;
-            background-color: var(--bg-color);
-            z-index: 10;
-        }
+        /* --- Cuadrados Fijos Superior e Inferior --- */
+        .fixed-zone {
+            position: fixed;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 840px;
+            background-color: var(--bg-color);
+            z-index: 10;
+        }
 
-        /* HEADER FIJO */
-        .secondary-info {
-            top: 0;
-            height: var(--header-height);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 20px;
-            color: var(--sub-text-color);
-            font-size: 0.85rem;
-            border-bottom: 1px solid var(--input-bg); /* Línea sutil de separación */
-        }
-        
-        #menu-btn {
-            background: none;
-            border: none;
-            color: var(--sub-text-color);
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: color 0.2s;
-            padding: 0 10px;
-        }
-        #menu-btn:hover { color: var(--accent-color); }
+        /* HEADER FIJO */
+        .secondary-info {
+            top: 0;
+            height: var(--header-height);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            color: var(--sub-text-color);
+            font-size: 0.85rem;
+            border-bottom: 1px solid var(--input-bg); /* Línea sutil de separación */
+        }
+        
+        #menu-btn {
+            background: none;
+            border: none;
+            color: var(--sub-text-color);
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: color 0.2s;
+            padding: 0 10px;
+        }
+        #menu-btn:hover { color: var(--accent-color); }
 
 
-        /* INPUT FIJO */
-        .input-area {
-            bottom: 0;
-            padding-top: 20px;
-            padding-bottom: var(--footer-padding);
-        }
-        
-        /* --- CHAT VIEW (Área de Scroll) --- */
-        #chat-view {
-            width: 100%;
-            flex-grow: 1;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            padding: 20px 0;
-            padding-top: calc(var(--header-height) + 10px); 
-            padding-bottom: calc(var(--input-height-min) + var(--suggest-height) + var(--footer-padding));
-        }
+        /* INPUT FIJO */
+        .input-area {
+            bottom: 0;
+            padding-top: 20px;
+            padding-bottom: var(--footer-padding);
+        }
+        
+        /* --- CHAT VIEW (Área de Scroll) --- */
+        #chat-view {
+            width: 100%;
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 20px 0;
+            padding-top: calc(var(--header-height) + 10px); 
+            padding-bottom: calc(var(--input-height-min) + var(--suggest-height) + var(--footer-padding));
+        }
 
-        #chat-view > :first-child { margin-top: auto; }
-        #chat-view::-webkit-scrollbar { display: none; }
-        #chat-view { -ms-overflow-style: none; scrollbar-width: none; }
+        #chat-view > :first-child { margin-top: auto; }
+        #chat-view::-webkit-scrollbar { display: none; }
+        #chat-view { -ms-overflow-style: none; scrollbar-width: none; }
 
-        .msg { padding: 15px; border-radius: 8px; line-height: 1.6; max-width: 80%; font-size: 0.95rem; }
-        .user { background-color: transparent; color: var(--text-color); text-align: right; align-self: flex-end; }
-        .bot { background-color: var(--card-bg); color: var(--text-color); border-left: 3px solid var(--accent-color); align-self: flex-start; }
-        
-        /* --- Pantalla de Bienvenida y ACCESO (Añadido) --- */
+        .msg { padding: 15px; border-radius: 8px; line-height: 1.6; max-width: 80%; font-size: 0.95rem; }
+        .user { background-color: transparent; color: var(--text-color); text-align: right; align-self: flex-end; }
+        .bot { background-color: var(--card-bg); color: var(--text-color); border-left: 3px solid var(--accent-color); align-self: flex-start; }
+        
+        /* --- Pantalla de Bienvenida y ACCESO (Ajustado) --- */
         #welcome-view, #access-view {
             text-align: center;
             flex-grow: 1;
@@ -216,46 +216,46 @@
             background-color: #3870b9;
         }
 
+        /* --- Input Styles (Simplified) --- */
+        .input-wrapper {
+            width: 95%; max-width: 800px; margin: 0 auto; position: relative; background-color: var(--input-bg); border-radius: 30px; padding: 5px; display: flex; align-items: center; box-shadow: 0 4px 15px var(--shadow-color); border: 1px solid transparent; transition: all 0.3s ease;
+        }
+        .input-wrapper:focus-within { border-color: var(--accent-color); box-shadow: 0 4px 20px rgba(74, 144, 226, 0.4); }
+        #input { flex-grow: 1; padding: 12px 20px; border: none; background: transparent; color: var(--text-color); font-size: 1rem; outline: none; resize: none; overflow: hidden; min-height: 1.5em; max-height: 200px; }
+        .icon-btn { background: none; border: none; color: var(--sub-text-color); padding: 10px; margin-right: 5px; cursor: pointer; transition: color 0.2s; font-size: 1rem; }
+        .icon-btn:hover { color: var(--accent-color); }
+        #send-btn { background-color: var(--accent-color); color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; margin-right: 5px; }
+        #send-btn:disabled { background-color: var(--input-bg); color: var(--sub-text-color); cursor: not-allowed; }
 
-        /* --- Input Styles (Simplified) --- */
-        .input-wrapper {
-            width: 95%; max-width: 800px; margin: 0 auto; position: relative; background-color: var(--input-bg); border-radius: 30px; padding: 5px; display: flex; align-items: center; box-shadow: 0 4px 15px var(--shadow-color); border: 1px solid transparent; transition: all 0.3s ease;
-        }
-        .input-wrapper:focus-within { border-color: var(--accent-color); box-shadow: 0 4px 20px rgba(74, 144, 226, 0.4); }
-        #input { flex-grow: 1; padding: 12px 20px; border: none; background: transparent; color: var(--text-color); font-size: 1rem; outline: none; resize: none; overflow: hidden; min-height: 1.5em; max-height: 200px; }
-        .icon-btn { background: none; border: none; color: var(--sub-text-color); padding: 10px; margin-right: 5px; cursor: pointer; transition: color 0.2s; font-size: 1rem; }
-        .icon-btn:hover { color: var(--accent-color); }
-        #send-btn { background-color: var(--accent-color); color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; margin-right: 5px; }
-        #send-btn:disabled { background-color: var(--input-bg); color: var(--sub-text-color); cursor: not-allowed; }
-
-        /* --- Acciones Sugeridas --- */
-        .suggested-actions { margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-        .action-btn { background-color: var(--input-bg); color: var(--sub-text-color); border: 1px solid var(--input-bg); padding: 8px 15px; border-radius: 20px; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; }
-        .action-btn:hover { background-color: var(--card-bg); border-color: var(--accent-color); color: var(--accent-color); }
-    </style>
+        /* --- Acciones Sugeridas --- */
+        .suggested-actions { margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+        .action-btn { background-color: var(--input-bg); color: var(--sub-text-color); border: 1px solid var(--input-bg); padding: 8px 15px; border-radius: 20px; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; }
+        .action-btn:hover { background-color: var(--card-bg); border-color: var(--accent-color); color: var(--accent-color); }
+    </style>
 </head>
 <body>
 
 <div id="sidebar">
-    <div class="sidebar-header">
-        <span style="font-size: 1.2rem; font-weight: bold; color: var(--accent-color);">Chats</span>
-        <button id="new-chat-btn" onclick="newChat()"><i class="fas fa-plus"></i> Nuevo Chat</button>
-    </div>
-    <ul id="chat-list">
-        </ul>
-    <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--input-bg);">
-        <span style="color: var(--sub-text-color);">Almacenamiento Local</span>
-    </div>
+    <div class="sidebar-header">
+        <span style="font-size: 1.2rem; font-weight: bold; color: var(--accent-color);">Chats</span>
+        <button id="new-chat-btn" onclick="newChat()"><i class="fas fa-plus"></i> Nuevo Chat</button>
+    </div>
+    <ul id="chat-list">
+        </ul>
+    <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--input-bg);">
+        <span style="color: var(--sub-text-color);">Almacenamiento Local</span>
+    </div>
 </div>
 
 <div id="overlay" onclick="toggleSidebar()" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 15; display: none;"></div>
 
 
-<div class="fixed-zone secondary-info" id="header-bar" style="display: none;">     <div>
-        <button id="menu-btn" onclick="toggleSidebar()" title="Historial"><i class="fas fa-bars"></i></button>
-        <span style="margin-left: 10px;">Llama 3 Powered</span>
-    </div>
-    <span><i class="fas fa-user-circle"></i> Usuario Pro</span>
+<div class="fixed-zone secondary-info" id="header-bar" style="display: none;">
+    <div>
+        <button id="menu-btn" onclick="toggleSidebar()" title="Historial"><i class="fas fa-bars"></i></button>
+        <span style="margin-left: 10px;">Llama 3 Powered</span>
+    </div>
+    <span><i class="fas fa-user-circle"></i> Usuario Pro</span>
 </div>
 
 <div class="main-container">
@@ -270,30 +270,32 @@
         </form>
     </div>
 
-    <div id="welcome-view" style="display: none;">         <h1>¡Hola! ¿Cómo puedo ayudarte hoy?</h1>
-        <p>Soy Llama 3, tu asistente impulsado por Groq en Netlify.</p>
-    </div>
-    
-    <div id="chat-view" style="display: none;">
-        </div>
-    
-    <div class="fixed-zone input-area" id="input-controls" style="display: none;">         <div class="input-wrapper">
-            <button class="icon-btn" title="Adjuntar"><i class="fas fa-paperclip"></i></button>
-            
-            <textarea id="input" placeholder="Escribe tu consulta aquí..." rows="1"></textarea>
-            
-            <button class="icon-btn" title="Modo Rápido"><i class="fas fa-bolt"></i></button>
-            <button onclick="send()" id="send-btn" title="Enviar">
-                <i class="fas fa-arrow-up"></i>
-            </button>
-        </div>
-        
-        <div class="suggested-actions" id="suggested-actions">
-            <button class="action-btn" onclick="suggest('Dame ideas para un proyecto de IA')"><i class="fas fa-lightbulb"></i> Inspiración</button>
-            <button class="action-btn" onclick="suggest('Escribe una introducción profesional sobre...')"><i class="fas fa-pen-nib"></i> Productividad</button>
-            <button class="action-btn" onclick="suggest('Explícame la ley de gravitación de forma sencilla.')"><i class="fas fa-graduation-cap"></i> Educativo</button>
-        </div>
-    </div>
+    <div id="welcome-view" style="display: none;">
+        <h1>¡Hola! ¿Cómo puedo ayudarte hoy?</h1>
+        <p>Soy Llama 3, tu asistente impulsado por Groq en Netlify.</p>
+    </div>
+    
+    <div id="chat-view" style="display: none;">
+        </div>
+    
+    <div class="fixed-zone input-area" id="input-controls" style="display: none;">
+        <div class="input-wrapper">
+            <button class="icon-btn" title="Adjuntar"><i class="fas fa-paperclip"></i></button>
+            
+            <textarea id="input" placeholder="Escribe tu consulta aquí..." rows="1"></textarea>
+            
+            <button class="icon-btn" title="Modo Rápido"><i class="fas fa-bolt"></i></button>
+            <button onclick="send()" id="send-btn" title="Enviar">
+                <i class="fas fa-arrow-up"></i>
+            </button>
+        </div>
+        
+        <div class="suggested-actions" id="suggested-actions">
+            <button class="action-btn" onclick="suggest('Dame ideas para un proyecto de IA')"><i class="fas fa-lightbulb"></i> Inspiración</button>
+            <button class="action-btn" onclick="suggest('Escribe una introducción profesional sobre...')"><i class="fas fa-pen-nib"></i> Productividad</button>
+            <button class="action-btn" onclick="suggest('Explícame la ley de gravitación de forma sencilla.')"><i class="fas fa-graduation-cap"></i> Educativo</button>
+        </div>
+    </div>
 
 </div>
 
@@ -308,7 +310,7 @@
     const overlay = document.getElementById('overlay');
     const chatList = document.getElementById('chat-list');
     
-    // Elementos de la nueva vista de acceso (Añadido)
+    // Elementos de la nueva vista de acceso
     const accessView = document.getElementById('access-view');
     const accessKeyInput = document.getElementById('access-key-input');
     const accessError = document.getElementById('access-error');
@@ -320,11 +322,11 @@
     let chatHistory = []; 
     let accessKey = localStorage.getItem(ACCESS_KEY_STORAGE); // Intentar cargar la clave al inicio
 
-    // --- Funciones de Gestión del Historial ---
+    // --- Funciones de Gestión del Historial ---
 
-    function generateChatId() {
-        return Date.now().toString(36) + Math.random().toString(36).substr(2);
-    }
+    function generateChatId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
 
     function saveCurrentChat() {
         if (!chatHistory || chatHistory.length === 0) return;
@@ -370,7 +372,7 @@
         saveCurrentChat(); // Guardar el chat anterior
         currentChatId = null;
         chatHistory = [];
-        showWelcomeView(); // Corregido: usa la nueva función
+        showWelcomeView();
         chatView.innerHTML = '';
         toggleSidebar();
     }
@@ -380,7 +382,7 @@
         let chatKeys = [];
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            // Ignoramos la clave de acceso (Añadido)
+            // Ignoramos la clave de acceso
             if (key === ACCESS_KEY_STORAGE) continue;
             
             try {
@@ -428,7 +430,7 @@
         });
     }
 
-    // --- Funciones de Interfaz y Vistas (Añadido) ---
+    // --- Funciones de Interfaz y Vistas ---
 
     function showAccessView() {
         accessView.style.display = 'flex';
@@ -460,46 +462,46 @@
         chatView.scrollTop = chatView.scrollHeight; 
         inputField.focus();
     }
-
-    function toggleSidebar() {
-        if (accessView.style.display !== 'none') return; // No abrir si está en la vista de acceso (Añadido)
-
-        sidebar.classList.toggle('open');
-        overlay.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
-        loadChatList(); // Cargar la lista cada vez que se abre
-    }
-
-    function adjustTextareaHeight() {
-        inputField.style.height = 'auto'; 
-        inputField.style.height = Math.min(inputField.scrollHeight, 200) + 'px';
-    }
-
-    inputField.addEventListener('input', adjustTextareaHeight);
-    inputField.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            send();
-        }
-    });
-
-    function suggest(prompt) {
-        inputField.value = prompt;
-        adjustTextareaHeight();
-        inputField.focus();
-    }
-
-    function addMessage(text, type, shouldScroll = true) {
-        const div = document.createElement('div');
-        div.className = `msg ${type}`;
-        div.innerText = text;
-        chatView.appendChild(div);
-        
-        if (shouldScroll) {
-            chatView.scrollTop = chatView.scrollHeight;
-        }
-    }
     
-    // --- LÓGICA DE ACCESO (Añadido) ---
+    function toggleSidebar() {
+        if (accessView.style.display !== 'none') return; // No abrir si está en la vista de acceso
+
+        sidebar.classList.toggle('open');
+        overlay.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
+        loadChatList(); // Cargar la lista cada vez que se abre
+    }
+
+    function adjustTextareaHeight() {
+        inputField.style.height = 'auto'; 
+        inputField.style.height = Math.min(inputField.scrollHeight, 200) + 'px';
+    }
+
+    inputField.addEventListener('input', adjustTextareaHeight);
+    inputField.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            send();
+        }
+    });
+
+    function suggest(prompt) {
+        inputField.value = prompt;
+        adjustTextareaHeight();
+        inputField.focus();
+    }
+
+    function addMessage(text, type, shouldScroll = true) {
+        const div = document.createElement('div');
+        div.className = `msg ${type}`;
+        div.innerText = text;
+        chatView.appendChild(div);
+        
+        if (shouldScroll) {
+            chatView.scrollTop = chatView.scrollHeight;
+        }
+    }
+    
+    // --- LÓGICA DE ACCESO ---
     async function checkAccessKey() {
         const key = accessKeyInput.value.trim();
         if (!key) return;
@@ -545,46 +547,46 @@
     }
 
 
-    // --- Función Principal de Envío (Ajustada para Historial y Clave) ---
+    // --- Función Principal de Envío (Ajustada para Historial y Clave) ---
 
-    async function send() {
-        if (!accessKey) { // Bloquear si no hay clave (Añadido)
+    async function send() {
+        if (!accessKey) { // Bloquear si no hay clave
             alert('Por favor, ingresa la clave de acceso primero.');
             showAccessView();
             return;
         }
+        
+        const text = inputField.value.trim();
+        if (!text) return;
 
-        const text = inputField.value.trim();
-        if (!text) return;
+        showChatView();
+        
+        // 1. Añadir mensaje de usuario a la UI y al historial
+        addMessage(text, 'user');
+        chatHistory.push({ role: 'user', content: text });
+        saveCurrentChat(); // Guardar el mensaje del usuario inmediatamente
+        
+        inputField.value = '';
+        inputField.style.height = '1.5em'; 
+        inputField.disabled = true; 
+        sendBtn.disabled = true;
 
-        showChatView();
-        
-        // 1. Añadir mensaje de usuario a la UI y al historial
-        addMessage(text, 'user');
-        chatHistory.push({ role: 'user', content: text });
-        saveCurrentChat(); // Guardar el mensaje del usuario inmediatamente
-        
-        inputField.value = '';
-        inputField.style.height = '1.5em'; 
-        inputField.disabled = true; 
-        sendBtn.disabled = true;
-
-        try {
-            // 2. Preparar el historial completo y AÑADIR LA CLAVE DE ACCESO
-            const messagesToSend = chatHistory.slice(1);
-            
-            const req = await fetch(NETLIFY_FUNCTION_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
+        try {
+            // 2. Preparar el historial completo y AÑADIR LA CLAVE DE ACCESO
+            const messagesToSend = chatHistory.slice(1);
+            
+            const req = await fetch(NETLIFY_FUNCTION_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
                     messages: messagesToSend,
-                    access_key: accessKey // <-- ENVIAMOS LA CLAVE SECRETA CON CADA LLAMADA (Añadido)
+                    access_key: accessKey // <-- ENVIAMOS LA CLAVE SECRETA CON CADA LLAMADA
                 })
-            });
-            
-            const res = await req.json();
+            });
+            
+            const res = await req.json();
 
-            if (req.status === 401) { // Manejar error de clave de acceso (Añadido)
+            if (req.status === 401) { // Manejar error de clave de acceso
                 // Si el servidor devuelve 401 (Acceso no autorizado), la clave guardada falló
                  addMessage("Error de autenticación. Por favor, re-ingresa tu clave de acceso.", 'bot');
                  localStorage.removeItem(ACCESS_KEY_STORAGE);
@@ -593,25 +595,25 @@
                  return;
             }
 
-            const replyText = res.reply || res.error || "ERROR: Fallo en la respuesta de Llama 3.";
-            
-            // 3. Añadir respuesta del bot a la UI y al historial
-            addMessage(replyText, 'bot');
-            chatHistory.push({ role: 'assistant', content: replyText });
-            saveCurrentChat(); // Guardar la respuesta del bot
+            const replyText = res.reply || res.error || "ERROR: Fallo en la respuesta de Llama 3.";
+            
+            // 3. Añadir respuesta del bot a la UI y al historial
+            addMessage(replyText, 'bot');
+            chatHistory.push({ role: 'assistant', content: replyText });
+            saveCurrentChat(); // Guardar la respuesta del bot
 
-        } catch (e) {
-            addMessage("ERROR CRÍTICO: No se pudo establecer la conexión de red con el backend.", 'bot');
-            chatHistory.push({ role: 'assistant', content: "Error de red." });
-            saveCurrentChat();
-        } finally {
-            inputField.disabled = false;
-            sendBtn.disabled = false;
-            inputField.focus();
-        }
-    }
-    
-    // --- Inicialización (Modificado) ---
+        } catch (e) {
+            addMessage("ERROR CRÍTICO: No se pudo establecer la conexión de red con el backend.", 'bot');
+            chatHistory.push({ role: 'assistant', content: "Error de red." });
+            saveCurrentChat();
+        } finally {
+            inputField.disabled = false;
+            sendBtn.disabled = false;
+            inputField.focus();
+        }
+    }
+    
+    // --- Inicialización ---
     document.addEventListener('DOMContentLoaded', () => {
         loadChatList();
         
