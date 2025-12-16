@@ -273,6 +273,9 @@
     <div id="welcome-view" style="display: none;">
         <h1>¡Hola! ¿Cómo puedo ayudarte hoy?</h1>
         <p>Soy Llama 3, tu asistente impulsado por Groq en Netlify.</p>
+        <p style="font-size: 0.9rem; color: var(--accent-color);">
+            ¡Consejo! Usa el clip para adjuntar una imagen. Extraeremos el texto por ti.
+        </p>
     </div>
     
     <div id="chat-view" style="display: none;">
@@ -287,7 +290,10 @@
         </div>
         
         <div class="input-wrapper">
-            <button class="icon-btn" title="Adjuntar"><i class="fas fa-paperclip"></i></button>
+            <input type="file" id="file-input" accept="image/*" style="display: none;" onchange="handleFileUpload()">
+            <button class="icon-btn" id="attach-btn" title="Adjuntar Imagen (OCR)" onclick="document.getElementById('file-input').click();">
+                <i class="fas fa-paperclip"></i>
+            </button>
             
             <textarea id="input" placeholder="Escribe tu consulta aquí..." rows="1"></textarea>
             
@@ -297,7 +303,7 @@
             </button>
         </div>
         
-        </div>
+    </div>
 
 </div>
 
@@ -312,19 +318,23 @@
     const overlay = document.getElementById('overlay');
     const chatList = document.getElementById('chat-list');
     
-    // Elementos de la nueva vista de acceso
+    // Elementos de la vista de acceso
     const accessView = document.getElementById('access-view');
     const accessKeyInput = document.getElementById('access-key-input');
     const accessError = document.getElementById('access-error');
     const headerBar = document.getElementById('header-bar');
     const inputControls = document.getElementById('input-controls');
+    const attachBtn = document.getElementById('attach-btn'); // Botón de adjuntar
     
-    const ACCESS_KEY_STORAGE = 'chat_access_key'; // Clave para guardar el token en localStorage
+    const ACCESS_KEY_STORAGE = 'chat_access_key'; 
     let currentChatId = null;
     let chatHistory = []; 
-    let accessKey = localStorage.getItem(ACCESS_KEY_STORAGE); // Intentar cargar la clave al inicio
+    let accessKey = localStorage.getItem(ACCESS_KEY_STORAGE); 
 
-    // --- Funciones de Gestión del Historial ---
+    let attachedFileBase64 = null; // NUEVO: Para guardar la imagen Base64
+    let attachedFileName = null; // NUEVO: Para el nombre del archivo
+    
+    // --- Funciones de Gestión del Historial (Sin cambios esenciales) ---
 
     function generateChatId() {
         return Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -432,7 +442,7 @@
         });
     }
 
-    // --- Funciones de Interfaz y Vistas ---
+    // --- Funciones de Interfaz y Vistas (Mantenidas) ---
 
     function showAccessView() {
         accessView.style.display = 'flex';
@@ -466,11 +476,11 @@
     }
     
     function toggleSidebar() {
-        if (accessView.style.display !== 'none') return; // No abrir si está en la vista de acceso
+        if (accessView.style.display !== 'none') return; 
 
         sidebar.classList.toggle('open');
         overlay.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
-        loadChatList(); // Cargar la lista cada vez que se abre
+        loadChatList(); 
     }
 
     function adjustTextareaHeight() {
@@ -503,14 +513,12 @@
         }
     }
     
-    // --- LÓGICA DE ACCESO ---
+    // --- LÓGICA DE ACCESO (Mantenida) ---
     async function checkAccessKey() {
         const key = accessKeyInput.value.trim();
         if (!key) return;
         
-        // 1. Intentar validar la clave enviando una solicitud "dummy"
         try {
-            // Deshabilitar la entrada mientras se valida
             accessKeyInput.disabled = true;
             
             const req = await fetch(NETLIFY_FUNCTION_URL, {
@@ -522,14 +530,12 @@
                 })
             });
 
-            // Si el estado es 200 (OK), la clave es correcta.
             if (req.status === 200) {
                 accessKey = key;
-                localStorage.setItem(ACCESS_KEY_STORAGE, key); // Guardar para no pedirla de nuevo
+                localStorage.setItem(ACCESS_KEY_STORAGE, key); 
                 accessError.style.display = 'none';
                 accessKeyInput.disabled = false;
-                showWelcomeView(); // Mostrar el chat
-
+                showWelcomeView(); 
             } else if (req.status === 401) {
                 accessError.innerText = "Clave incorrecta. Inténtalo de nuevo.";
                 accessError.style.display = 'block';
@@ -548,52 +554,98 @@
         }
     }
 
+    // --- MANEJO DE ARCHIVOS (NUEVO) ---
 
-    // --- Función Principal de Envío (Ajustada para Historial y Clave) ---
+    function handleFileUpload() {
+        const fileInput = document.getElementById('file-input');
+        const file = fileInput.files[0];
+
+        if (!file) {
+            attachedFileBase64 = null;
+            attachedFileName = null;
+            // Limpiar icono
+            attachBtn.querySelector('.fas.fa-paperclip').style.color = 'var(--sub-text-color)';
+            return;
+        }
+
+        // Mostrar un mensaje de que la imagen fue seleccionada
+        attachedFileName = file.name;
+        alert(`Imagen seleccionada: ${attachedFileName}. Envía tu pregunta para procesar el texto.`);
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            // Obtenemos solo la data Base64 (quitamos 'data:image/jpeg;base64,')
+            attachedFileBase64 = e.target.result.split(',')[1]; 
+            // Cambiar el icono del clip para indicar que hay archivo adjunto
+            attachBtn.querySelector('.fas.fa-paperclip').style.color = 'var(--accent-color)';
+        };
+        reader.onerror = function(e) {
+            alert("Error al leer el archivo.");
+            attachedFileBase64 = null;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // --- Función Principal de Envío (Ajustada para Historial, Clave y OCR) ---
 
     async function send() {
-        if (!accessKey) { // Bloquear si no hay clave
+        if (!accessKey) { 
             alert('Por favor, ingresa la clave de acceso primero.');
             showAccessView();
             return;
         }
         
         const text = inputField.value.trim();
-        if (!text) return;
+        
+        // Si no hay texto y no hay imagen, salimos.
+        if (!text && !attachedFileBase64) return;
+        
+        // Crear el mensaje de consulta, incluyendo la info del archivo si existe
+        let userMessageContent = text;
+        if (attachedFileBase64) {
+            // Si hay imagen, añadimos una etiqueta al mensaje que el backend usará.
+            userMessageContent += (userMessageContent ? ' ' : '') + `[ATTACHMENT: ${attachedFileName}] Procesa el texto de la imagen y responde mi pregunta.`;
+            // Limpiamos el texto para que el usuario pueda escribir su prompt si lo desea
+            inputField.value = ''; 
+        }
+
 
         showChatView();
         
         // 1. Añadir mensaje de usuario a la UI y al historial
-        addMessage(text, 'user');
-        chatHistory.push({ role: 'user', content: text });
-        saveCurrentChat(); // Guardar el mensaje del usuario inmediatamente
+        addMessage(userMessageContent, 'user');
+        chatHistory.push({ role: 'user', content: userMessageContent });
+        saveCurrentChat(); 
         
         inputField.value = '';
         inputField.style.height = '1.5em'; 
         inputField.disabled = true; 
         sendBtn.disabled = true;
+        attachBtn.disabled = true; // Deshabilitar adjuntar mientras se procesa
 
         try {
-            // 2. Preparar el historial completo y AÑADIR LA CLAVE DE ACCESO
             const messagesToSend = chatHistory.slice(1);
             
+            // Cuerpo de la solicitud que incluye la imagen Base64 (si existe)
+            const requestBody = {
+                messages: messagesToSend,
+                access_key: accessKey,
+                image_base64: attachedFileBase64 // <--- NUEVO CAMPO
+            };
+
             const req = await fetch(NETLIFY_FUNCTION_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    messages: messagesToSend,
-                    access_key: accessKey // <-- ENVIAMOS LA CLAVE SECRETA CON CADA LLAMADA
-                })
+                body: JSON.stringify(requestBody)
             });
             
             const res = await req.json();
 
-            if (req.status === 401) { // Manejar error de clave de acceso
-                // Si el servidor devuelve 401 (Acceso no autorizado), la clave guardada falló
+            if (req.status === 401) { 
                  addMessage("Error de autenticación. Por favor, re-ingresa tu clave de acceso.", 'bot');
                  localStorage.removeItem(ACCESS_KEY_STORAGE);
                  accessKey = null;
-                 setTimeout(showAccessView, 3000); // Mostrar vista de acceso tras 3 segundos
+                 setTimeout(showAccessView, 3000); 
                  return;
             }
 
@@ -602,7 +654,7 @@
             // 3. Añadir respuesta del bot a la UI y al historial
             addMessage(replyText, 'bot');
             chatHistory.push({ role: 'assistant', content: replyText });
-            saveCurrentChat(); // Guardar la respuesta del bot
+            saveCurrentChat(); 
 
         } catch (e) {
             addMessage("ERROR CRÍTICO: No se pudo establecer la conexión de red con el backend.", 'bot');
@@ -611,6 +663,14 @@
         } finally {
             inputField.disabled = false;
             sendBtn.disabled = false;
+            attachBtn.disabled = false; // Habilitar adjuntar
+            
+            // Limpieza después de enviar
+            attachedFileBase64 = null;
+            attachedFileName = null;
+            document.getElementById('file-input').value = ''; // Resetear el input file
+            attachBtn.querySelector('.fas.fa-paperclip').style.color = 'var(--sub-text-color)'; // Resetear color del icono
+
             inputField.focus();
         }
     }
@@ -619,7 +679,6 @@
     document.addEventListener('DOMContentLoaded', () => {
         loadChatList();
         
-        // Si hay una clave guardada, saltar a la bienvenida. Si no, pedir la clave.
         if (accessKey) {
             showWelcomeView();
         } else {
