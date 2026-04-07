@@ -290,8 +290,8 @@
         </div>
         
         <div class="input-wrapper">
-            <input type="file" id="file-input" accept="image/*" style="display: none;" onchange="handleFileUpload()">
-            <button class="icon-btn" id="attach-btn" title="Adjuntar Imagen (OCR)" onclick="document.getElementById('file-input').click();">
+            <input type="file" id="file-input" accept="image/*,application/pdf" style="display: none;" onchange="handleFileUpload()">
+            <button class="icon-btn" id="attach-btn" title="Adjuntar archivo (imagen o PDF)" onclick="document.getElementById('file-input').click();">
                 <i class="fas fa-paperclip"></i>
             </button>
             
@@ -331,8 +331,9 @@
     let chatHistory = []; 
     let accessKey = localStorage.getItem(ACCESS_KEY_STORAGE); 
 
-    let attachedFileBase64 = null; // NUEVO: Para guardar la imagen Base64
-    let attachedFileName = null; // NUEVO: Para el nombre del archivo
+    let attachedFileBase64 = null;
+    let attachedFileName = null;
+    let attachedFileMime = null;
     
     // --- Funciones de Gestión del Historial (Sin cambios esenciales) ---
 
@@ -554,83 +555,108 @@
         }
     }
 
-    // --- MANEJO DE ARCHIVOS (NUEVO) ---
+    // --- MANEJO DE ARCHIVOS ---
+
+    let attachedFileReady = false;
+    let attachedFileMime = null;
 
     function handleFileUpload() {
         const fileInput = document.getElementById('file-input');
         const file = fileInput.files[0];
 
         if (!file) {
-            attachedFileBase64 = null;
-            attachedFileName = null;
-            // Limpiar icono
-            attachBtn.querySelector('.fas.fa-paperclip').style.color = 'var(--sub-text-color)';
+            clearAttachment();
             return;
         }
 
-        // Mostrar un mensaje de que la imagen fue seleccionada
         attachedFileName = file.name;
-        alert(`Imagen seleccionada: ${attachedFileName}. Envía tu pregunta para procesar el texto.`);
-        
+        attachedFileBase64 = null;
+        attachedFileReady = false;
+        attachedFileMime = file.type || 'application/octet-stream';
+
+        // Icono naranja = leyendo
+        attachBtn.querySelector('.fas.fa-paperclip').style.color = '#f0a500';
+
         const reader = new FileReader();
         reader.onload = function(e) {
-            // Obtenemos solo la data Base64 (quitamos 'data:image/jpeg;base64,')
-            attachedFileBase64 = e.target.result.split(',')[1]; 
-            // Cambiar el icono del clip para indicar que hay archivo adjunto
+            attachedFileBase64 = e.target.result.split(',')[1];
+            attachedFileReady = true;
+            // Icono azul = listo
             attachBtn.querySelector('.fas.fa-paperclip').style.color = 'var(--accent-color)';
+            inputField.placeholder = `Archivo adjunto: ${attachedFileName}. Escribe tu consulta o envía directamente.`;
         };
-        reader.onerror = function(e) {
-            alert("Error al leer el archivo.");
-            attachedFileBase64 = null;
+        reader.onerror = function() {
+            alert("Error al leer el archivo. Inténtalo de nuevo.");
+            clearAttachment();
         };
         reader.readAsDataURL(file);
     }
 
-    // --- Función Principal de Envío (Ajustada para Historial, Clave y OCR) ---
+    function clearAttachment() {
+        attachedFileBase64 = null;
+        attachedFileName = null;
+        attachedFileMime = null;
+        attachedFileReady = false;
+        document.getElementById('file-input').value = '';
+        attachBtn.querySelector('.fas.fa-paperclip').style.color = 'var(--sub-text-color)';
+        inputField.placeholder = 'Escribe tu consulta aquí...';
+    }
+
+    // --- Función Principal de Envío ---
 
     async function send() {
-        if (!accessKey) { 
+        if (!accessKey) {
             alert('Por favor, ingresa la clave de acceso primero.');
             showAccessView();
             return;
         }
-        
+
         const text = inputField.value.trim();
-        
-        // Si no hay texto y no hay imagen, salimos.
-        if (!text && !attachedFileBase64) return;
-        
-        // Crear el mensaje de consulta, incluyendo la info del archivo si existe
-        let userMessageContent = text;
-        if (attachedFileBase64) {
-            // Si hay imagen, añadimos una etiqueta al mensaje que el backend usará.
-            userMessageContent += (userMessageContent ? ' ' : '') + `[ATTACHMENT: ${attachedFileName}] Procesa el texto de la imagen y responde mi pregunta.`;
-            // Limpiamos el texto para que el usuario pueda escribir su prompt si lo desea
-            inputField.value = ''; 
+
+        // Si el archivo fue seleccionado pero el FileReader aún no terminó
+        if (attachedFileName && !attachedFileReady) {
+            alert('El archivo aún se está cargando. Espera un momento e inténtalo de nuevo.');
+            return;
         }
 
+        // Si no hay texto ni archivo adjunto, no hacer nada
+        if (!text && !attachedFileBase64) return;
+
+        // Texto limpio para mostrar en el chat
+        const displayText = attachedFileName
+            ? (text ? `${text} [📎 ${attachedFileName}]` : `📎 ${attachedFileName}`)
+            : text;
 
         showChatView();
-        
-        // 1. Añadir mensaje de usuario a la UI y al historial
-        addMessage(userMessageContent, 'user');
-        chatHistory.push({ role: 'user', content: userMessageContent });
-        saveCurrentChat(); 
-        
+
+        addMessage(displayText, 'user');
+        chatHistory.push({ role: 'user', content: displayText });
+        saveCurrentChat();
+
+        // Guardar datos del archivo antes de limpiar
+        const fileBase64 = attachedFileBase64;
+        const fileMime = attachedFileMime;
+        const fileName = attachedFileName;
+
+        // Limpiar UI inmediatamente
         inputField.value = '';
-        inputField.style.height = '1.5em'; 
-        inputField.disabled = true; 
+        inputField.style.height = '1.5em';
+        inputField.disabled = true;
         sendBtn.disabled = true;
-        attachBtn.disabled = true; // Deshabilitar adjuntar mientras se procesa
+        attachBtn.disabled = true;
+        clearAttachment();
 
         try {
             const messagesToSend = chatHistory.slice(1);
-            
-            // Cuerpo de la solicitud que incluye la imagen Base64 (si existe)
+
             const requestBody = {
                 messages: messagesToSend,
                 access_key: accessKey,
-                image_base64: attachedFileBase64 // <--- NUEVO CAMPO
+                ...(fileBase64 && {
+                    file_base64: fileBase64,
+                    file_mime: fileMime,
+                    file_name: fileName
+                })
             };
 
             const req = await fetch(NETLIFY_FUNCTION_URL, {
@@ -638,23 +664,21 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(requestBody)
             });
-            
-            const res = await req.json();
 
-            if (req.status === 401) { 
-                 addMessage("Error de autenticación. Por favor, re-ingresa tu clave de acceso.", 'bot');
-                 localStorage.removeItem(ACCESS_KEY_STORAGE);
-                 accessKey = null;
-                 setTimeout(showAccessView, 3000); 
-                 return;
+            if (req.status === 401) {
+                addMessage("Error de autenticación. Por favor, re-ingresa tu clave de acceso.", 'bot');
+                localStorage.removeItem(ACCESS_KEY_STORAGE);
+                accessKey = null;
+                setTimeout(showAccessView, 3000);
+                return;
             }
 
-            const replyText = res.reply || res.error || "ERROR: Fallo en la respuesta de Llama 3.";
-            
-            // 3. Añadir respuesta del bot a la UI y al historial
+            const res = await req.json();
+            const replyText = res.reply || res.error || "ERROR: Fallo en la respuesta del servidor.";
+
             addMessage(replyText, 'bot');
             chatHistory.push({ role: 'assistant', content: replyText });
-            saveCurrentChat(); 
+            saveCurrentChat();
 
         } catch (e) {
             addMessage("ERROR CRÍTICO: No se pudo establecer la conexión de red con el backend.", 'bot');
@@ -663,14 +687,7 @@
         } finally {
             inputField.disabled = false;
             sendBtn.disabled = false;
-            attachBtn.disabled = false; // Habilitar adjuntar
-            
-            // Limpieza después de enviar
-            attachedFileBase64 = null;
-            attachedFileName = null;
-            document.getElementById('file-input').value = ''; // Resetear el input file
-            attachBtn.querySelector('.fas.fa-paperclip').style.color = 'var(--sub-text-color)'; // Resetear color del icono
-
+            attachBtn.disabled = false;
             inputField.focus();
         }
     }
