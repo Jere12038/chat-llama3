@@ -6,6 +6,8 @@
     <title>Llama 3 | Chat History</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
     <style>
         /* Variables y Estilos Base */
         :root {
@@ -232,6 +234,69 @@
         .suggested-actions { margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
         .action-btn { background-color: var(--input-bg); color: var(--sub-text-color); border: 1px solid var(--input-bg); padding: 8px 15px; border-radius: 20px; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; }
         .action-btn:hover { background-color: var(--card-bg); border-color: var(--accent-color); color: var(--accent-color); }
+
+        /* Botones de descarga de documentos */
+        .download-bar {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .download-btn {
+            background: none;
+            border: 1px solid var(--input-bg);
+            color: var(--sub-text-color);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .download-btn:hover { border-color: var(--accent-color); color: var(--accent-color); }
+        .download-btn.pdf:hover { border-color: #e05555; color: #e05555; }
+        .download-btn.word:hover { border-color: #4a90e2; color: #4a90e2; }
+        .download-btn.code:hover { border-color: #a78bfa; color: #a78bfa; }
+
+        /* Bloques de código */
+        .code-block {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 6px;
+            margin: 8px 0;
+            overflow: hidden;
+            max-width: 100%;
+        }
+        .code-block-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 12px;
+            background: #1e1e1e;
+            font-size: 0.75rem;
+            color: var(--sub-text-color);
+        }
+        .code-block pre {
+            margin: 0;
+            padding: 12px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: #e2e8f0;
+            white-space: pre;
+        }
+        .copy-btn {
+            background: none;
+            border: 1px solid #444;
+            color: var(--sub-text-color);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+        .copy-btn:hover { border-color: var(--accent-color); color: var(--accent-color); }
     </style>
 </head>
 <body>
@@ -505,17 +570,285 @@
         inputField.focus();
     }
 
-    function addMessage(text, type, shouldScroll = true) {
-        const div = document.createElement('div');
-        div.className = `msg ${type}`;
-        div.innerText = text;
-        chatView.appendChild(div);
-        
-        if (shouldScroll) {
-            chatView.scrollTop = chatView.scrollHeight;
-        }
+    // Extensiones conocidas por lenguaje
+    const LANG_EXT = { python: 'py', javascript: 'js', js: 'js', html: 'html', css: 'css', bash: 'sh', sh: 'sh', sql: 'sql', json: 'json', typescript: 'ts', ts: 'ts', java: 'java', cpp: 'cpp', c: 'c', ruby: 'rb', php: 'php', go: 'go', rust: 'rs', swift: 'swift' };
+
+    function renderBotContent(text, msgDiv, bar, docData) {
+        // Detectar bloques de código ```lang ... ```
+        const fence = '```';
+        const codeBlockRegex = new RegExp(fence + '(\\w*)\\n?([\\s\\S]*?)' + fence, 'g');
+        const codeBlocks = []; // {lang, code, placeholder}
+        let idx = 0;
+        const withPlaceholders = text.replace(codeBlockRegex, (_, lang, code) => {
+            codeBlocks.push({ lang: lang.toLowerCase() || 'text', code: code.trim() });
+            return '__CODE_BLOCK_' + (idx++) + '__';
+        });
+
+        // Renderizar texto con markdown básico
+        const safe = withPlaceholders
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g,'<em>$1</em>')
+            .replace(/`([^`]+)`/g,'<code style="background:#222;padding:1px 5px;border-radius:3px;font-family:monospace">$1</code>')
+            .replace(/\n/g,'<br>');
+
+        // Fragmentar en partes de texto y bloques de código
+        const parts = safe.split(/(__CODE_BLOCK_\d+__)/);
+        parts.forEach(part => {
+            const match = part.match(/__CODE_BLOCK_(\d+)__/);
+            if (match) {
+                const { lang, code } = codeBlocks[parseInt(match[1])];
+                const ext = LANG_EXT[lang] || 'txt';
+                const block = document.createElement('div');
+                block.className = 'code-block';
+                const header = document.createElement('div');
+                header.className = 'code-block-header';
+                header.innerHTML = '<span>' + (lang || 'código') + '</span>';
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.textContent = 'Copiar';
+                copyBtn.onclick = () => { navigator.clipboard.writeText(code); copyBtn.textContent = '¡Copiado!'; setTimeout(() => copyBtn.textContent = 'Copiar', 2000); };
+                header.appendChild(copyBtn);
+                const pre = document.createElement('pre');
+                pre.textContent = code;
+                block.appendChild(header);
+                block.appendChild(pre);
+                msgDiv.appendChild(block);
+
+                // Botón de descarga en la barra
+                const dlBtn = document.createElement('button');
+                dlBtn.className = 'download-btn code';
+                dlBtn.innerHTML = '<i class="fas fa-download"></i> Descargar .' + ext;
+                dlBtn.onclick = () => {
+                    const blob = new Blob([code], { type: 'text/plain' });
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = 'codigo.' + ext;
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                };
+                bar.appendChild(dlBtn);
+            } else if (part.replace(/<br>/g,'').trim()) {
+                const span = document.createElement('span');
+                span.innerHTML = part;
+                msgDiv.appendChild(span);
+            }
+        });
     }
-    
+
+    function addMessage(text, type, shouldScroll = true, fileData = null) {
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'display:flex;flex-direction:column;align-items:' + (type === 'user' ? 'flex-end' : 'flex-start');
+
+        const div = document.createElement('div');
+        div.className = 'msg ' + type;
+
+        const bar = document.createElement('div');
+        bar.className = 'download-bar';
+
+        if (type === 'bot') {
+            renderBotContent(text, div, bar, fileData);
+
+            // Botones de archivo generado por IA
+            if (fileData) {
+                const fmt = fileData.format;
+                if (fmt === 'word' || fmt === 'pdf') {
+                    // Siempre ofrecer ambos para documentos
+                    const btnWord = document.createElement('button');
+                    btnWord.className = 'download-btn word';
+                    btnWord.innerHTML = '<i class="fas fa-file-word"></i> Descargar Word';
+                    btnWord.onclick = () => downloadDocAsWord(fileData);
+                    bar.appendChild(btnWord);
+                    const btnPDF = document.createElement('button');
+                    btnPDF.className = 'download-btn pdf';
+                    btnPDF.innerHTML = '<i class="fas fa-file-pdf"></i> Descargar PDF';
+                    btnPDF.onclick = () => downloadDocAsPDF(fileData);
+                    bar.appendChild(btnPDF);
+                } else if (fmt === 'txt') {
+                    const btnTxt = document.createElement('button');
+                    btnTxt.className = 'download-btn code';
+                    const ext = fileData.filename && fileData.filename.includes('.') ? '' : '.txt';
+                    btnTxt.innerHTML = '<i class="fas fa-download"></i> Descargar archivo';
+                    btnTxt.onclick = () => {
+                        const txtContent = fileData.sections.map(s => {
+                            if (s.type === 'paragraph' || s.type === 'bold') return s.text;
+                            if (s.type === 'list') return s.items.map(i => '- ' + i).join('\n');
+                            if (s.type === 'heading1' || s.type === 'heading2') return s.text.toUpperCase();
+                            return '';
+                        }).join('\n\n');
+                        const blob = new Blob([txtContent], { type: 'text/plain' });
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = (fileData.filename || 'archivo') + ext;
+                        a.click(); URL.revokeObjectURL(a.href);
+                    };
+                    bar.appendChild(btnTxt);
+                } else if (fmt === 'csv') {
+                    const btnCsv = document.createElement('button');
+                    btnCsv.className = 'download-btn code';
+                    btnCsv.innerHTML = '<i class="fas fa-file-csv"></i> Descargar CSV';
+                    btnCsv.onclick = () => {
+                        const tbl = fileData.sections.find(s => s.type === 'table');
+                        if (!tbl) return;
+                        const rows = [tbl.headers, ...tbl.rows].map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(','));
+                        const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = (fileData.filename || 'datos') + '.csv';
+                        a.click(); URL.revokeObjectURL(a.href);
+                    };
+                    bar.appendChild(btnCsv);
+                }
+            }
+        } else {
+            div.innerText = text;
+        }
+
+        wrapper.appendChild(div);
+        if (bar.children.length > 0) wrapper.appendChild(bar);
+        chatView.appendChild(wrapper);
+
+        if (shouldScroll) chatView.scrollTop = chatView.scrollHeight;
+    }
+
+    // --- GENERACIÓN DE DOCUMENTOS ---
+
+    function pdfAddText(doc, text, margin, maxWidth, lineH, yRef, pageH, bold, fs) {
+        doc.setFont('helvetica', bold ? 'bold' : 'normal');
+        doc.setFontSize(fs || 11);
+        doc.setTextColor(0);
+        doc.splitTextToSize(text, maxWidth).forEach(line => {
+            if (yRef.y + lineH > pageH - margin) { doc.addPage(); yRef.y = margin; }
+            doc.text(line, margin, yRef.y);
+            yRef.y += lineH;
+        });
+    }
+
+    function buildPDF(sections, title, filename) {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+        const margin = 20, pageWidth = doc.internal.pageSize.getWidth(), pageH = doc.internal.pageSize.getHeight();
+        const maxW = pageWidth - margin * 2;
+        const y = { y: margin };
+
+        sections.forEach(sec => {
+            if (sec.type === 'heading1') {
+                y.y += 4;
+                pdfAddText(doc, sec.text, margin, maxW, 9, y, pageH, true, 16);
+                doc.setDrawColor(74,144,226); doc.setLineWidth(0.4);
+                doc.line(margin, y.y, pageWidth-margin, y.y); y.y += 6;
+            } else if (sec.type === 'heading2') {
+                y.y += 3; pdfAddText(doc, sec.text, margin, maxW, 8, y, pageH, true, 13); y.y += 2;
+            } else if (sec.type === 'heading3') {
+                y.y += 2; pdfAddText(doc, sec.text, margin, maxW, 7, y, pageH, true, 11);
+            } else if (sec.type === 'bold') {
+                pdfAddText(doc, sec.text, margin, maxW, 7, y, pageH, true, 11);
+            } else if (sec.type === 'italic') {
+                doc.setFont('helvetica','italic');
+                pdfAddText(doc, sec.text, margin, maxW, 7, y, pageH, false, 11);
+            } else if (sec.type === 'paragraph') {
+                pdfAddText(doc, sec.text, margin, maxW, 7, y, pageH, false, 11); y.y += 2;
+            } else if (sec.type === 'list') {
+                (sec.items||[]).forEach(item => pdfAddText(doc, '- ' + item, margin+4, maxW-4, 7, y, pageH, false, 11));
+                y.y += 2;
+            } else if (sec.type === 'table') {
+                const cols = (sec.headers||['Col']).length;
+                const colW = maxW / cols;
+                doc.setFont('helvetica','bold'); doc.setFontSize(10);
+                (sec.headers||[]).forEach((h,i) => {
+                    doc.setFillColor(74,144,226); doc.setTextColor(255);
+                    doc.rect(margin + i*colW, y.y-5, colW, 7, 'F');
+                    doc.text(String(h), margin + i*colW + 2, y.y);
+                });
+                doc.setTextColor(0); doc.setFont('helvetica','normal');
+                y.y += 4;
+                (sec.rows||[]).forEach(row => {
+                    row.forEach((cell,i) => doc.text(String(cell), margin + i*colW + 2, y.y));
+                    y.y += 7;
+                    if (y.y > pageH - margin) { doc.addPage(); y.y = margin; }
+                });
+                y.y += 3;
+            } else if (sec.type === 'separator') {
+                y.y += 3; doc.setDrawColor(180); doc.setLineWidth(0.3);
+                doc.line(margin, y.y, pageWidth-margin, y.y); y.y += 6;
+            } else if (sec.type === 'signature') {
+                y.y += 8; pdfAddText(doc, sec.text, margin, maxW, 7, y, pageH, false, 10); y.y += 4;
+            }
+        });
+
+        doc.setFontSize(8); doc.setTextColor(150);
+        doc.text('Generado por Asistente IA', margin, pageH - 10);
+        doc.save((filename || 'documento') + '.pdf');
+    }
+
+    async function buildWord(sections, title, filename) {
+        const { Document, Packer, Paragraph, TextRun, HeadingLevel,
+                Table, TableRow, TableCell, WidthType, BorderStyle, ShadingType } = docx;
+        const children = [];
+        for (const sec of sections) {
+            if (sec.type === 'heading1') {
+                children.push(new Paragraph({ text: sec.text, heading: HeadingLevel.HEADING_1, spacing: { after: 200 } }));
+            } else if (sec.type === 'heading2') {
+                children.push(new Paragraph({ text: sec.text, heading: HeadingLevel.HEADING_2, spacing: { after: 150 } }));
+            } else if (sec.type === 'heading3') {
+                children.push(new Paragraph({ text: sec.text, heading: HeadingLevel.HEADING_3, spacing: { after: 100 } }));
+            } else if (sec.type === 'paragraph') {
+                children.push(new Paragraph({ children: [new TextRun({ text: sec.text, size: 24 })], spacing: { after: 200 } }));
+            } else if (sec.type === 'bold') {
+                children.push(new Paragraph({ children: [new TextRun({ text: sec.text, bold: true, size: 24 })], spacing: { after: 150 } }));
+            } else if (sec.type === 'italic') {
+                children.push(new Paragraph({ children: [new TextRun({ text: sec.text, italics: true, size: 24 })], spacing: { after: 150 } }));
+            } else if (sec.type === 'list') {
+                for (const item of (sec.items||[])) {
+                    children.push(new Paragraph({ children: [new TextRun({ text: item, size: 24 })], bullet: { level: 0 }, spacing: { after: 100 } }));
+                }
+            } else if (sec.type === 'table') {
+                const rows = [];
+                if (sec.headers) {
+                    rows.push(new TableRow({ children: sec.headers.map(h =>
+                        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: h, bold: true, size: 22 })] })],
+                            shading: { fill: '4A90E2', type: ShadingType.CLEAR, color: 'auto' } })
+                    )}));
+                }
+                for (const row of (sec.rows||[])) {
+                    rows.push(new TableRow({ children: row.map(cell =>
+                        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(cell), size: 22 })] })] })
+                    )}));
+                }
+                children.push(new Table({ rows, width: { size: 100, type: WidthType.PERCENTAGE } }));
+                children.push(new Paragraph({ text: '' }));
+            } else if (sec.type === 'separator') {
+                children.push(new Paragraph({ border: { bottom: { color: 'AAAAAA', space: 1, size: 6, style: BorderStyle.SINGLE } }, spacing: { after: 200 } }));
+            } else if (sec.type === 'signature') {
+                children.push(new Paragraph({ children: [new TextRun({ text: sec.text, size: 22 })], spacing: { before: 400, after: 200 } }));
+            }
+        }
+        const wordDoc = new Document({ sections: [{ properties: {}, children }] });
+        const blob = await Packer.toBlob(wordDoc);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = (filename||'documento') + '.docx'; a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function downloadDocAsPDF(fileData) {
+        try { buildPDF(fileData.sections, fileData.title, fileData.filename); }
+        catch(e) { alert('Error PDF: ' + e.message); }
+    }
+
+    async function downloadDocAsWord(fileData) {
+        try { await buildWord(fileData.sections, fileData.title, fileData.filename); }
+        catch(e) { alert('Error Word: ' + e.message); }
+    }
+
+    function downloadTextAsPDF(text) {
+        buildPDF(text.split('\n').filter(l => l.trim()).map(l => ({ type: 'paragraph', text: l })), 'Respuesta', 'respuesta');
+    }
+
+    async function downloadTextAsWord(text) {
+        await buildWord(text.split('\n').filter(l => l.trim()).map(l => ({ type: 'paragraph', text: l })), 'Respuesta', 'respuesta');
+    }
+
     // --- LÓGICA DE ACCESO (Mantenida) ---
     async function checkAccessKey() {
         const key = accessKeyInput.value.trim();
@@ -715,8 +1048,9 @@
 
             const res = await req.json();
             const replyText = res.reply || res.error || "ERROR: Fallo en la respuesta del servidor.";
+            const fileData = res.file || null;
 
-            addMessage(replyText, 'bot');
+            addMessage(replyText, 'bot', true, fileData);
             chatHistory.push({ role: 'assistant', content: replyText });
             saveCurrentChat();
 
