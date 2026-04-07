@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Llama 3 | Chat History</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
         /* Variables y Estilos Base */
         :root {
@@ -334,6 +335,7 @@
     let attachedFileBase64 = null;
     let attachedFileName = null;
     let attachedFileMime = null;
+    let attachedFileText = null;  // Para PDFs: texto extraído en frontend
     
     // --- Funciones de Gestión del Historial (Sin cambios esenciales) ---
 
@@ -559,7 +561,7 @@
 
     let attachedFileReady = false;
 
-    function handleFileUpload() {
+    async function handleFileUpload() {
         const fileInput = document.getElementById('file-input');
         const file = fileInput.files[0];
 
@@ -570,31 +572,66 @@
 
         attachedFileName = file.name;
         attachedFileBase64 = null;
+        attachedFileText = null;
         attachedFileReady = false;
         attachedFileMime = file.type || 'application/octet-stream';
 
-        // Icono naranja = leyendo
+        // Icono naranja = procesando
         attachBtn.querySelector('.fas.fa-paperclip').style.color = '#f0a500';
+        inputField.placeholder = `Procesando ${attachedFileName}...`;
 
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            attachedFileBase64 = e.target.result.split(',')[1];
+        try {
+            if (file.type === 'application/pdf') {
+                // PDF: extraer texto en el navegador con PDF.js
+                const arrayBuffer = await file.arrayBuffer();
+                const pdfjsLib = window['pdfjs-dist/build/pdf'];
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                let fullText = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    fullText += pageText + '
+';
+                }
+                attachedFileText = fullText.trim();
+                if (!attachedFileText) {
+                    inputField.placeholder = '⚠️ El PDF no contiene texto seleccionable (puede ser escaneado). Prueba con una imagen.';
+                    attachBtn.querySelector('.fas.fa-paperclip').style.color = '#e05555';
+                    attachedFileReady = false;
+                    return;
+                }
+            } else {
+                // Imagen u otro archivo: leer como base64
+                await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        attachedFileBase64 = e.target.result.split(',')[1];
+                        resolve();
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            }
+
             attachedFileReady = true;
-            // Icono azul = listo
             attachBtn.querySelector('.fas.fa-paperclip').style.color = 'var(--accent-color)';
-            inputField.placeholder = `Archivo adjunto: ${attachedFileName}. Escribe tu consulta o envía directamente.`;
-        };
-        reader.onerror = function() {
-            alert("Error al leer el archivo. Inténtalo de nuevo.");
+            inputField.placeholder = `📎 ${attachedFileName} listo. Escribe tu consulta o envía directamente.`;
+
+        } catch (err) {
+            console.error('Error procesando archivo:', err);
+            alert('Error al procesar el archivo: ' + err.message);
             clearAttachment();
-        };
-        reader.readAsDataURL(file);
+        }
     }
 
     function clearAttachment() {
         attachedFileBase64 = null;
         attachedFileName = null;
         attachedFileMime = null;
+        attachedFileText = null;
         attachedFileReady = false;
         document.getElementById('file-input').value = '';
         attachBtn.querySelector('.fas.fa-paperclip').style.color = 'var(--sub-text-color)';
@@ -636,6 +673,7 @@
         const fileBase64 = attachedFileBase64;
         const fileMime = attachedFileMime;
         const fileName = attachedFileName;
+        const fileText = attachedFileText;
 
         // Limpiar UI inmediatamente
         inputField.value = '';
@@ -654,6 +692,10 @@
                 ...(fileBase64 && {
                     file_base64: fileBase64,
                     file_mime: fileMime,
+                    file_name: fileName
+                }),
+                ...(fileText && {
+                    file_text: fileText,
                     file_name: fileName
                 })
             };
